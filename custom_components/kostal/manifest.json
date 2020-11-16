@@ -1,0 +1,9 @@
+{
+  "codeowners": ["@rcasula"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/rcasula/kostalpiko-homeassistant",
+  "domain": "kostal",
+  "name": "Kostal Piko",
+  "requirements": ["kostalpiko>=0.2"]
+}
