@@ -96,7 +96,7 @@ class KostalInstance():
         )
 
     async def start_up(self):
-        self.piko.update()
+        await self.hass.async_add_executor_job(self.piko.update)
         self.add_sensors(self.conf[CONF_MONITORED_CONDITIONS], self.piko)
 
     async def stop(self, _=None):
