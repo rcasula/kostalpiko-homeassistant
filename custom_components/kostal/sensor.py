@@ -8,12 +8,19 @@ from homeassistant.helpers.typing import HomeAssistantType
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from homeassistant.helpers.entity import Entity
-from homeassistant.util import Throttle
+from homeassistant.util import Throttle, dt
 from homeassistant.const import (
     CONF_USERNAME,
     CONF_PASSWORD,
     CONF_HOST,
     CONF_MONITORED_CONDITIONS,
+    DEVICE_CLASS_ENERGY,
+    ENERGY_KILO_WATT_HOUR,
+)
+
+from homeassistant.components.sensor import (
+    STATE_CLASS_MEASUREMENT,
+    SensorEntity,
 )
 
 from .const import SENSOR_TYPES, MIN_TIME_BETWEEN_UPDATES, DOMAIN
@@ -43,7 +50,7 @@ async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry, async_a
     )
 
 
-class PikoSensor(Entity):
+class PikoSensor(SensorEntity):
     """Representation of a Piko inverter value."""
 
     def __init__(self, piko: Piko, sensor_type, name=None):
@@ -58,6 +65,13 @@ class PikoSensor(Entity):
         self._icon = SENSOR_TYPES[self.type][2]
         self.serial_number = None
         self.model = None
+        if self._unit_of_measurement == ENERGY_KILO_WATT_HOUR:
+            self._attr_state_class = STATE_CLASS_MEASUREMENT
+            self._attr_device_class = DEVICE_CLASS_ENERGY
+            if self._sensor == SENSOR_TYPES["daily_energy"][0]:
+                self._attr_last_reset = dt.utc_from_timestamp(dt.start_of_local_day)
+            else:
+                self._attr_last_reset = dt.utc_from_timestamp(0)
         self.info_update()
         self.update()
 
