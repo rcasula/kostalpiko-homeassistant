@@ -2,7 +2,7 @@
 
 import logging
 
-from kostalpiko.kostalpiko import Piko
+from .piko_holder import PikoHolder
 
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.helpers.typing import HomeAssistantType
@@ -21,7 +21,7 @@ from homeassistant.const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-__version__ = "0.0.1"
+__version__ = "1.2.0"
 VERSION = __version__
 
 
@@ -85,7 +85,7 @@ class KostalInstance():
         self.config_entry = entry
         self.entry_id = self.config_entry.entry_id
         self.conf = conf
-        self.piko = Piko(
+        self.piko = PikoHolder(
             conf[CONF_HOST], conf[CONF_USERNAME], conf[CONF_PASSWORD]
         )
 
@@ -103,10 +103,10 @@ class KostalInstance():
         """Stop Kostal."""
         _LOGGER.info("Shutting down Kostal")
 
-    def add_sensors(self, sensors, piko: Piko):
+    def add_sensors(self, sensors, piko: PikoHolder):
         self.hass.add_job(self._asyncadd_sensors(sensors, piko))
 
-    async def _asyncadd_sensors(self, sensors, piko: Piko):
+    async def _asyncadd_sensors(self, sensors, piko: PikoHolder):
         await self.hass.config_entries.async_forward_entry_setup(self.config_entry, "sensor")
         async_dispatcher_send(self.hass, "kostal_init_sensors", sensors, piko)
 

@@ -1,7 +1,7 @@
 """Support for Kostal PIKO Photvoltaic (PV) inverter."""
 
 import logging, time
-from kostalpiko.kostalpiko import Piko
+from .piko_holder import PikoHolder
 
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.helpers.typing import HomeAssistantType
@@ -31,7 +31,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry, async_add_entities):
     """Set up the sensor dynamically."""
     _LOGGER.info("Setting up kostal piko sensor")
-    async def async_add_sensors(sensors, piko: Piko):
+    async def async_add_sensors(sensors, piko: PikoHolder):
         """Add a sensor."""
         info = await hass.async_add_executor_job(piko._get_info)
         _sensors = []
@@ -53,7 +53,7 @@ async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry, async_a
 class PikoSensor(SensorEntity):
     """Representation of a Piko inverter value."""
 
-    def __init__(self,  hass: HomeAssistantType, piko: Piko, sensor_type, info={None,None}, name=None):
+    def __init__(self,  hass: HomeAssistantType, piko: PikoHolder, sensor_type, info={None,None}, name=None):
         """Initialize the sensor."""
         _LOGGER.debug("Initializing PikoSensor: %s", sensor_type)
         self._sensor = SENSOR_TYPES[sensor_type][0]
@@ -116,7 +116,6 @@ class PikoSensor(SensorEntity):
 
     
     def _update(self):
-        start=time.time()
         """Update data."""
         self.piko.update()
         data = self.piko.data
@@ -166,5 +165,3 @@ class PikoSensor(SensorEntity):
                 self._state = ba_data.get_consumption_phase_3() or "No BA sensor installed"
 
         _LOGGER.debug("END - Type: {} - {}".format(self.type, self._state))
-        _LOGGER.warning(time.time()-start)
-        return
