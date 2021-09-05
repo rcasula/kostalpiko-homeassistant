@@ -22,6 +22,10 @@ from homeassistant.components.sensor import (
     STATE_CLASS_MEASUREMENT,
     SensorEntity,
 )
+try:
+    from homeassistant.components.sensor import STATE_CLASS_TOTAL_INCREASING
+except ImportError:
+    from homeassistant.components.sensor import STATE_CLASS_MEASUREMENT as STATE_CLASS_TOTAL_INCREASING
 
 from .const import SENSOR_TYPES, MIN_TIME_BETWEEN_UPDATES, DOMAIN
 
@@ -67,12 +71,12 @@ class PikoSensor(SensorEntity):
         self.serial_number = info[0]
         self.model = info[1]
         if self._unit_of_measurement == ENERGY_KILO_WATT_HOUR:
-            self._attr_state_class = STATE_CLASS_MEASUREMENT
             self._attr_device_class = DEVICE_CLASS_ENERGY
             if self._sensor == SENSOR_TYPES["daily_energy"][0]:
                 self._attr_last_reset = dt.as_utc(dt.start_of_local_day())
+                self._attr_state_class = STATE_CLASS_MEASUREMENT
             else:
-                self._attr_last_reset = dt.utc_from_timestamp(0)
+                self._attr_state_class = STATE_CLASS_TOTAL_INCREASING
 
     @property
     def name(self):
