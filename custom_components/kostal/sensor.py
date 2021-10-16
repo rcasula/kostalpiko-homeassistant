@@ -1,20 +1,31 @@
 """Support for Kostal PIKO Photvoltaic (PV) inverter."""
 
-import logging
-from kostalpiko.kostalpiko import Piko
+import logging, time
+from .piko_holder import PikoHolder
 
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.helpers.typing import HomeAssistantType
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from homeassistant.helpers.entity import Entity
-from homeassistant.util import Throttle
+from homeassistant.util import Throttle, dt
 from homeassistant.const import (
     CONF_USERNAME,
     CONF_PASSWORD,
     CONF_HOST,
     CONF_MONITORED_CONDITIONS,
+    DEVICE_CLASS_ENERGY,
+    ENERGY_KILO_WATT_HOUR,
 )
+
+from homeassistant.components.sensor import (
+    STATE_CLASS_MEASUREMENT,
+    SensorEntity,
+)
+try:
+    from homeassistant.components.sensor import STATE_CLASS_TOTAL_INCREASING
+except ImportError:
+    from homeassistant.components.sensor import STATE_CLASS_MEASUREMENT as STATE_CLASS_TOTAL_INCREASING
 
 from .const import SENSOR_TYPES, MIN_TIME_BETWEEN_UPDATES, DOMAIN
 
@@ -24,12 +35,12 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry, async_add_entities):
     """Set up the sensor dynamically."""
     _LOGGER.info("Setting up kostal piko sensor")
-
-    async def async_add_sensors(sensors, piko: Piko):
+    async def async_add_sensors(sensors, piko: PikoHolder):
         """Add a sensor."""
+        info = await hass.async_add_executor_job(piko._get_info)
         _sensors = []
         for sensor in sensors:
-            _sensors.append(PikoSensor(piko, sensor, entry.title))
+            _sensors.append(PikoSensor(hass, piko, sensor, info, entry.title))
         
         async_add_entities(_sensors)
         # async_add_entities([
@@ -43,23 +54,29 @@ async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry, async_a
     )
 
 
-class PikoSensor(Entity):
+class PikoSensor(SensorEntity):
     """Representation of a Piko inverter value."""
 
-    def __init__(self, piko: Piko, sensor_type, name=None):
+    def __init__(self,  hass: HomeAssistantType, piko: PikoHolder, sensor_type, info={None,None}, name=None):
         """Initialize the sensor."""
         _LOGGER.debug("Initializing PikoSensor: %s", sensor_type)
         self._sensor = SENSOR_TYPES[sensor_type][0]
         self._name = name
+        self.hass = hass
         self.type = sensor_type
         self.piko = piko
         self._state = None
         self._unit_of_measurement = SENSOR_TYPES[self.type][1]
         self._icon = SENSOR_TYPES[self.type][2]
-        self.serial_number = None
-        self.model = None
-        self.info_update()
-        self.update()
+        self.serial_number = info[0]
+        self.model = info[1]
+        if self._unit_of_measurement == ENERGY_KILO_WATT_HOUR:
+            self._attr_device_class = DEVICE_CLASS_ENERGY
+            if self._sensor == SENSOR_TYPES["daily_energy"][0]:
+                self._attr_last_reset = dt.as_utc(dt.start_of_local_day())
+                self._attr_state_class = STATE_CLASS_MEASUREMENT
+            else:
+                self._attr_state_class = STATE_CLASS_TOTAL_INCREASING
 
     @property
     def name(self):
@@ -96,15 +113,18 @@ class PikoSensor(Entity):
             "model": self.model,
         }
 
+
     @Throttle(MIN_TIME_BETWEEN_UPDATES)
-    def update(self):
+    async def async_update(self):
+        await self.hass.async_add_executor_job(self._update)
+
+    
+    def _update(self):
         """Update data."""
         self.piko.update()
         data = self.piko.data
         ba_data = self.piko.ba_data
-        self.serial_number = self.info[0]
-        self.model = self.info[1]
-        
+
         if data is not None:
             if self.type == "current_power":
                 self._state = data.get_current_power()
@@ -149,8 +169,3 @@ class PikoSensor(Entity):
                 self._state = ba_data.get_consumption_phase_3() or "No BA sensor installed"
 
         _LOGGER.debug("END - Type: {} - {}".format(self.type, self._state))
-
-    def info_update(self):
-        """Update inverter info."""
-        self.info = self.piko._get_info()
-        _LOGGER.debug(self.info)

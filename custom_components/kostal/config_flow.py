@@ -3,7 +3,7 @@
 import logging
 import voluptuous as vol
 
-from kostalpyko.kostalpyko import Piko
+from kostalpiko.kostalpiko import Piko
 
 from requests.exceptions import HTTPError, ConnectTimeout
 
