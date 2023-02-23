@@ -72,11 +72,7 @@ class PikoSensor(SensorEntity):
         self.model = info[1]
         if self._unit_of_measurement == ENERGY_KILO_WATT_HOUR:
             self._attr_device_class = DEVICE_CLASS_ENERGY
-            if self._sensor == SENSOR_TYPES["daily_energy"][0]:
-                self._attr_last_reset = dt.as_utc(dt.start_of_local_day())
-                self._attr_state_class = STATE_CLASS_MEASUREMENT
-            else:
-                self._attr_state_class = STATE_CLASS_TOTAL_INCREASING
+            self._attr_state_class = STATE_CLASS_TOTAL_INCREASING
 
     @property
     def name(self):
